@@ -1,12 +1,72 @@
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const FValidator = require("fastest-validator");
 const validator = new FValidator();
 
 const login = (req, res) => {
-    res.status(200).json({
-        message: "login"
-    })
+    // Input data
+    let { email, password } = req.body;
+    // Validation Rules
+    let rules = {
+        email: {
+            type: "email",
+            normalize: true
+        },
+        password: {
+            type: "string",
+            min: 6
+        }
+    }
+
+    // Form Validation (Server side)
+    let isValid = validator.validate({ email, password }, rules);
+    if (isValid !== true) {
+        res.status(400).json(isValid);
+        return;
+    }
+
+    // Form is validate now do login
+    User.findOne({email})
+        .then(user => {
+            if (!user) {
+                return res.status(400).json({
+                    message: "User not found."
+                });
+            }
+
+            //User founded, now check password
+            bcrypt.compare(password, user.password, (error, result) => {
+                if (error) {
+                    return res.status(500).json({
+                        message: "Server error occurred."
+                    });
+                }
+                if (!result) {
+                    res.status(400).json({
+                        message: "Password does not match."
+                    });
+                } else {
+                    let token = jwt.sign({
+                        _id: user._id,
+                        first_name: user.first_name,
+                        last_name: user.last_name,
+                        email: user.email
+                    }, "SECRET", { expiresIn: '2h' });
+
+                    res.status(200).json({
+                        message: "Login Proceed.",
+                        token: 'Bearer ' + token
+                    });
+                }
+            });
+        })
+        .catch(error => {
+            res.status(500).json({
+                message: "Server error occurred.",
+                error
+            });
+        });
 }
 
 const registration = (req, res) => {
@@ -44,8 +104,7 @@ const registration = (req, res) => {
     // Form Validation (Server side)
     let isValid = validator.validate({ first_name, last_name, email, password, confirmPassword }, rules);
     if (isValid !== true) {
-        res.status(400).json(isValid);
-        return;
+        return res.status(400).json(isValid);
     }
 
     // Form is validate now do registration
