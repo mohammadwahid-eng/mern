@@ -4,70 +4,6 @@ const User = require("../models/User");
 const FValidator = require("fastest-validator");
 const validator = new FValidator();
 
-const login = (req, res) => {
-    // Input data
-    let { email, password } = req.body;
-    // Validation Rules
-    let rules = {
-        email: {
-            type: "email",
-            normalize: true
-        },
-        password: {
-            type: "string",
-            min: 6
-        }
-    }
-
-    // Form Validation (Server side)
-    let isValid = validator.validate({ email, password }, rules);
-    if (isValid !== true) {
-        res.status(400).json(isValid);
-        return;
-    }
-
-    // Form is validate now do login
-    User.findOne({email})
-        .then(user => {
-            if (!user) {
-                return res.status(400).json({
-                    message: "User not found."
-                });
-            }
-
-            //User founded, now check password
-            bcrypt.compare(password, user.password, (error, result) => {
-                if (error) {
-                    return res.status(500).json({
-                        message: "Server error occurred."
-                    });
-                }
-                if (!result) {
-                    res.status(400).json({
-                        message: "Password does not match."
-                    });
-                } else {
-                    let token = jwt.sign({
-                        _id: user._id,
-                        email: user.email
-                    }, process.env.JWT_SECRET_KEY, { expiresIn: '2h' });
-
-                    res.cookie("jwt", token, { httpOnly: true, maxAge: 2 * 60 * 60 * 1000 });
-                    res.status(200).json({
-                        message: "Login Proceed.",
-                        token: token
-                    });
-                }
-            });
-        })
-        .catch(error => {
-            res.status(500).json({
-                message: "Server error occurred.",
-                error
-            });
-        });
-}
-
 const registration = (req, res) => {
     // Input data
     let { first_name, last_name, email, password, confirmPassword } = req.body;
@@ -131,6 +67,76 @@ const registration = (req, res) => {
 
 }
 
+const login = (req, res) => {
+    // Input data
+    let { email, password } = req.body;
+    // Validation Rules
+    let rules = {
+        email: {
+            type: "email",
+            normalize: true
+        },
+        password: {
+            type: "string",
+            min: 6
+        }
+    }
+
+    // Form Validation (Server side)
+    let isValid = validator.validate({ email, password }, rules);
+    if (isValid !== true) {
+        res.status(400).json(isValid);
+        return;
+    }
+
+    // Form is validate now do login
+    User.findOne({email})
+        .then(user => {
+            if (!user) {
+                return res.status(400).json({
+                    message: "User not found."
+                });
+            }
+
+            //User founded, now check password
+            bcrypt.compare(password, user.password, (error, result) => {
+                if (error) {
+                    return res.status(500).json({
+                        message: "Server error occurred."
+                    });
+                }
+                if (!result) {
+                    res.status(400).json({
+                        message: "Password does not match."
+                    });
+                } else {
+                    let token = jwt.sign({
+                        _id: user._id
+                    }, process.env.JWT_SECRET_KEY, { expiresIn: '2h' });
+
+                    res.cookie("jwt", token, { httpOnly: true, maxAge: 2 * 60 * 60 * 1000 });
+                    res.status(200).json({
+                        message: "Login Proceed.",
+                        token: token
+                    });
+                }
+            });
+        })
+        .catch(error => {
+            res.status(500).json({
+                message: "Server error occurred.",
+                error
+            });
+        });
+}
+
+const logout = (req, res) => {
+    res.cookie("jwt", "", { maxAge: 1 });
+    res.status(200).json({
+       message: "Logout success."
+    });
+}
+
 module.exports = {
-    login, registration
+    registration, login, logout
 }
