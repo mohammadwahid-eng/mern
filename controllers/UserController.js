@@ -49,14 +49,13 @@ const login = (req, res) => {
                 } else {
                     let token = jwt.sign({
                         _id: user._id,
-                        first_name: user.first_name,
-                        last_name: user.last_name,
                         email: user.email
-                    }, "SECRET", { expiresIn: '2h' });
+                    }, process.env.JWT_SECRET_KEY, { expiresIn: '2h' });
 
+                    res.cookie("jwt", token, { httpOnly: true, maxAge: 2 * 60 * 60 * 1000 });
                     res.status(200).json({
                         message: "Login Proceed.",
-                        token: 'Bearer ' + token
+                        token: token
                     });
                 }
             });
