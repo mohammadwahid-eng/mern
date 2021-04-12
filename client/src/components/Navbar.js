@@ -1,7 +1,19 @@
 import React, {Component} from 'react';
-import {Link, NavLink} from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
+import { connect } from "react-redux";
+import { logout } from "../store/Auth/AuthActions";
 
 class Navbar extends Component {
+	constructor(props) {
+		super(props);
+		this.handleClick = this.handleClick.bind(this);
+	}
+
+	handleClick = event => {
+		event.preventDefault();
+		this.props.logout(this.props.history);
+	}
+
 	render() {
 		return (
 			<React.Fragment>
@@ -13,9 +25,7 @@ class Navbar extends Component {
 						</button>
 						<div className="collapse navbar-collapse" id="menu">
 							<ul className="navbar-nav ms-auto">
-								<li className="nav-item"><NavLink to="/login" className="nav-link" activeClassName="active">Login</NavLink></li>
-								<li className="nav-item"><NavLink to="/registration" className="nav-link" activeClassName="active">Registration</NavLink></li>
-								<li className="nav-item"><NavLink to="/logout" className="nav-link" activeClassName="active">Logout</NavLink></li>
+								<li className="nav-item"><NavLink to="/logout" className="nav-link" onClick={this.handleClick}>Logout</NavLink></li>
 							</ul>
 						</div>
 					</div>
@@ -25,4 +35,4 @@ class Navbar extends Component {
 	}
 }
 
-export default Navbar;
+export default connect(null, { logout })(Navbar);

@@ -19,7 +19,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 
     //Application Listening
     app.listen(process.env.PORT, () => {
-        console.log("Application listening at port " + process.env.PORT);
+        console.log("Server listening at port " + process.env.PORT);
     });
 }).catch((error) => {
     console.log(error)

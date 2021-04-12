@@ -6,79 +6,104 @@ const validator = new FValidator();
 
 const registration = (req, res) => {
     // Input data
-    let { first_name, last_name, email, password, confirmPassword } = req.body;
+    let { name, email, password, confirmPassword } = req.body;
 
     // Validation Rules
     let rules = {
-        first_name: {
+        name: {
             type: "string",
-            empty: false,
             trim: true,
-            alphanum: false
-        },
-        last_name: {
-            type: "string",
-            empty: false,
-            trim: true,
-            alphanum: false
+            messages: {
+                required: "Name field is required.",
+                string: "Name must be a string."
+            }
         },
         email: {
             type: "email",
-            normalize: true
+            normalize: true,
+            messages: {
+                emailEmpty: "Email field is required.",
+                email: "Invalid email address."
+            }
         },
         password: {
             type: "string",
-            min: 6
+            min: 6,
+            messages: {
+                required: "Password field is required.",
+                string: "Password must be a string.",
+                stringMin: "Password length must be at least {expected} characters."
+            }
         },
         confirmPassword: {
             type: "equal",
-            field: "password"
+            field: "password",
+            messages: {
+                required: "Confirm password is required.",
+                equalField: "Password did not match."
+            }
         }
     }
 
-    // Form Validation (Server side)
-    let isValid = validator.validate({ first_name, last_name, email, password, confirmPassword }, rules);
+    // Form Validation (Before sending data to server)
+    let isValid = validator.validate({ name, email, password, confirmPassword }, rules);
     if (isValid !== true) {
         return res.status(400).json(isValid);
     }
 
-    // Form is validate now do registration
-    bcrypt.hash(password, 11, (error, hashPassword) => {
-        let user = new User({
-            first_name,
-            last_name,
-            email,
-            password: hashPassword
-        });
-        user.save()
-            .then(user => {
-                res.status(201).json({
-                    message: "User created successfully",
-                    user
-                });
-            })
-            .catch(error => {
-                res.status(500).json({
-                    message: "Server error occurred",
-                    error
-                });
-            });
-    });
+    //Find if email already registered or not
+    User.findOne({email})
+        .then(user => {
+            if (user) {
+                return res.status(400).json([
+                    {
+                        "type": "unique",
+                        "message": "Email already exists.",
+                        "field": "email"
+                    }
+                ]);
+            }
 
+            //Generate HasPassword
+            bcrypt.hash(password, 11, (error, hashPassword) => {
+                let user = new User({ name, email, password: hashPassword });
+                user.save()
+                    .then(user => {
+                        res.status(201).json(user);
+                    })
+                    .catch(error => {
+                        res.status(500).json(error);
+                    });
+            });
+
+        })
+        .catch(error => {
+            res.status(500).json(error);
+        });
 }
 
 const login = (req, res) => {
     // Input data
     let { email, password } = req.body;
+
     // Validation Rules
     let rules = {
         email: {
             type: "email",
-            normalize: true
+            normalize: true,
+            messages: {
+                required: "Email field is required.",
+                email: "Invalid email address."
+            }
         },
         password: {
             type: "string",
-            min: 6
+            min: 6,
+            messages: {
+                required: "Password field is required.",
+                string: "Password must be a string.",
+                stringMin: "Password length must be at least {expected} characters."
+            }
         }
     }
 
@@ -94,49 +119,38 @@ const login = (req, res) => {
         .then(user => {
             if (!user) {
                 return res.status(400).json({
-                    message: "User not found."
+                    "type": "equal",
+                    "message": "Email is not registered.",
+                    "field": "email"
                 });
             }
 
             //User founded, now check password
             bcrypt.compare(password, user.password, (error, result) => {
                 if (error) {
-                    return res.status(500).json({
-                        message: "Server error occurred."
-                    });
+                    return res.status(500).json(error);
                 }
                 if (!result) {
                     res.status(400).json({
-                        message: "Password does not match."
+                        "type": "equal",
+                        "message": "Password does not match.",
+                        "field": "password"
                     });
                 } else {
                     let token = jwt.sign({
-                        _id: user._id
+                        _id: user._id,
+                        name: user.name,
+                        email: user.email
                     }, process.env.JWT_SECRET_KEY, { expiresIn: '2h' });
-
-                    res.cookie("jwt", token, { httpOnly: true, maxAge: 2 * 60 * 60 * 1000 });
-                    res.status(200).json({
-                        message: "Login Proceed.",
-                        token: token
-                    });
+                    res.status(200).json("Bearer " + token);
                 }
             });
         })
         .catch(error => {
-            res.status(500).json({
-                message: "Server error occurred.",
-                error
-            });
+            res.status(500).json(error);
         });
 }
 
-const logout = (req, res) => {
-    res.cookie("jwt", "", { maxAge: 1 });
-    res.status(200).json({
-       message: "Logout success."
-    });
-}
-
 module.exports = {
-    registration, login, logout
+    registration, login
 }
